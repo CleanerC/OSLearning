@@ -22,7 +22,13 @@ struct Mem
 			Data[ii] = 0;
 		}
 	}
-}
+	
+	//read 1 Byte from memory
+	Byte& operator[]( u32 Address )
+	{
+		return Data[Address];
+	}
+};
 
 
 struct CPU
@@ -53,13 +59,48 @@ struct CPU
 
 		memory.Initialize();
 	}
-}
+
+	Byte FetchByte( u32& Cycles, Mem& memory )
+	{
+		Byte Data = memory[PC];
+		PC++;
+		Cycles--;
+		return Data;
+	}
+	
+	static constexpr Byte
+		INS_LDA_IM = 0xA9;
+
+	void Execute( u32 Cycles, Mem& memory )
+	{
+		while( Cycles > 0 ) {
+			Byte Instruction = FetchByte( Cycles, memory );
+			switch ( Instruction )
+			{
+			case INS_LDA_IM :
+			{
+				Byte value = FetchByte( Cycles, memory );
+				A = value;
+				Z = (A == 0);
+				N = (A & 0b100000000) > 0;
+			} break;
+			default :
+			{
+				printf("instruction not handled %d", Instruction);
+			} break;
+			}
+		}
+	}	
+};
 
 int main() {
 	CPU cpu;
 	Mem mem;
 	cpu.Reset( mem );
+	mem[0xFFFC] = CPU::INS_LDA_IM;
+	mem[0xFFFD] = 0x42;
 
+	cpu.Execute( 2, mem );
 
 	return 0;
 }
