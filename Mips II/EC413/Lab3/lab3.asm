@@ -49,9 +49,31 @@ main:
 #Count number of occurrences of letter "a" and "e" in Text string and compute the difference between the number of occurrences
 
 
+        la   $t0, Text
+        li   $t1, 0    # loop var
+        li   $t2, 0    # count of a
+        li   $t3, 0    # count of e
+
+count:  lb   $t4, 0($t0)   #load a byte
+        beq  $t4, 0, done  #if null byte, we are done
+        beq  $t4, 97, pa     #if a, increment a count
+        beq  $t4, 101, pe    #if e, increment e count
+        addi $t0, $t0, 1    #increment pointer
+        j    count          #repeat loop
+
+pa:      addi $t2, $t2, 1    #increment a count
+        addi $t0, $t0, 1    #increment pointer
+        j    count          #repeat loop
+
+pe:      addi $t3, $t3, 1    #increment e count
+        addi $t0, $t0, 1    #increment pointer
+        j    count          #repeat loop
 
 
-
+done:   sub  $t5, $t2, $t3  #compute difference
+        li   $v0, 1          #print integer
+        move $a0, $t5
+        syscall
 
 
 
@@ -68,10 +90,21 @@ main:
 #
 
 
+        li  $t0, 5
+        li  $t1, 0  # loop var
+        li  $t2, 12  # AnInt
 
+loop:   bge $t0, $t2, done2
+        li  $v0, 1
+        move $a0, $t0
+        syscall
+        la  $a0, space
+        li  $v0, 4
+        syscall
+        addi $t0, $t0, 1
+        j   loop
 
-
-
+done2: xor $t1, $t1, $t1       # don't do anything
 
 
 
@@ -86,10 +119,29 @@ main:
 #
 
 
+        la  $t0, Input2
+        li  $t1, 0  # loop var
+        li  $t2, 16  # length of Input2 (4*4)
+        li  $t4, 4
 
+loop2:  bge $t1, $t2, done3
+        lb  $t3, 0($t0)
+        blt $t3, $t4, toprint
+        addi $t0, $t0, 1
+        addi $t1, $t1, 1
+        j   loop2
 
+toprint:  li  $v0, 1
+        move $a0, $t3
+        syscall               # print the integer
+        la  $a0, space
+        li  $v0, 4
+        syscall               # print space
+        addi $t0, $t0, 1
+        addi $t1, $t1, 1
+        j   loop2
 
-
+done3: xor $t1, $t1, $t1       # don't do anything
 
 
 
@@ -101,12 +153,20 @@ main:
 #
 
 
+        la  $t0, Input2
+        la  $t1, Copy
+        li  $t2, 16  # length of Input2 (I want to loop 4 times, but I increament by 4 each time)
+        li  $t5, 0   # loop var
+loop3:  beq $t5, $t2, done4
+        lw  $t3, 0($t0)
+        sw  $t3, 0($t1)
 
+        addi $t0, $t0, 4
+        addi $t1, $t1, 4
+        addi $t5, $t5, 4
+        j   loop3
 
-
-
-
-
+done4:  
 
 
 
@@ -123,13 +183,34 @@ main:
 #
 
 
+        la  $t0, Input1
+        li  $t1, 0  # loop var
+        li  $t2, 4  # length of Input1
+        li  $t4, 0  # sum of lo
+        li  $t5, 0  # sum of hi
+loop4:  bge $t1, $t2, done5
+        lw  $t3, 0($t0)
+        mult $t3, $t3
+        mflo $t6
+        mfhi $t7
+        add $t4, $t4, $t6
+        add $t5, $t5, $t7
 
+        addi $t0, $t0, 4
+        addi $t1, $t1, 1
+        j   loop4
+done5:  div $t4, $t2
+        mflo $t4
+        div $t5, $t2
+        mflo $t5
+        
+        li   $v0, 1
+        move $a0, $t5
+        syscall    # print the integer    
 
-
-
-
-
-
+        li   $v0, 1
+        move $a0, $t4
+        syscall    # print the integer  
 
 
 
@@ -148,13 +229,43 @@ main:
 
 
 
+        li  $t0, 0  # loop var
+        li  $t1, 0  # number to check
+
+        li $t2, 7
+        li $t3, 13
+
+loop5:  bge $t0, 10, done6
+
+        div $t1, $t2
+        mfhi $t4
+        div $t1, $t3
+        mfhi $t5
+
+        beq $t4, 0, print2
+        beq $t5, 0, print2
+
+        addi $t1, $t1, 1
+        j   loop5
+
+print2: li  $v0, 1
+        move $a0, $t1
+        syscall               # print the integer
+        la  $a0, space
+        li  $v0, 4
+        syscall               # print space
+        addi $t1, $t1, 1
+        addi $t0, $t0, 1
+        j   loop5
+
+done6:        # don't do anything
 
 
-
-
-
-
-
+#################################################################################
+        la	$a0,Enter	# address of string to print
+        li	$v0,4		# system call code for print_str
+        syscall                 # print the string
+##################################################################################
 
 
 
@@ -163,6 +274,48 @@ main:
 # Repeat step 7 but display the integers in 3 lines each with 5 integers (with spaces between the integers)
 # This must be implemented using a nested loop.
 #
+
+        li $t0, 0  # loop var
+        li $t1, 0  # number to check
+        li $t2, 7
+        li $t3, 13
+        li $t4, 0  #line
+        li $t5, 0  #integers in line
+
+loop6:  beq $t4, 3, Exit
+
+loop7:  beq $t5, 5, penter
+
+        div $t1, $t2
+        mfhi $t6
+        div $t1, $t3
+        mfhi $t7
+
+        beq $t6, 0, print3
+        beq $t7, 0, print3
+
+        addi $t1, $t1, 1
+
+        j   loop6
+
+
+print3: li  $v0, 1
+        move $a0, $t1
+        syscall               # print the integer
+        la  $a0, space
+        li  $v0, 4
+        syscall               # print space
+        addi $t1, $t1, 1
+        addi $t5, $t5, 1
+        j   loop6
+
+
+penter: la  $a0, Enter
+        li  $v0, 4
+        syscall
+        addi $t4, $t4, 1
+        li  $t5, 0
+        j   loop6
 
 Exit:
 	jr $ra
