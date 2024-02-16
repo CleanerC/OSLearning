@@ -13,25 +13,6 @@ int getCmd(char* buffer, bool pflag)
     return 1;       //normal
 }
 
-bool cmdValid(const char* buffer)
-{
-    char operation[MAX_ARGV_LENGTH];
-    int nn = 0, index = 0;
-    while(buffer[nn] != '\0') {
-        if(buffer[nn] == '<' || buffer[nn] == '&' || buffer[nn] == '>') {
-        operation[index++] = buffer[nn];
-        }
-        nn++;
-    }
-    operation[index] = '\0';
-    for(nn = 1; operation[nn] != '\0'; nn++) {
-        if(operation[nn] == '<' || (nn < (strlen(operation) - 2) && (operation[nn] == '>' || operation[nn] == '&'))){
-            return false;
-        }
-    }
-    return true;
-}
-
 int execute(struct pipeline_command *cmd, int pass, bool waitflag)
 {
     int pfd[2];
@@ -40,10 +21,14 @@ int execute(struct pipeline_command *cmd, int pass, bool waitflag)
     if(fork() == 0) {
         //child
         if(cmd->redirect_in_path) {     //this only happens when it is the beginning 
-            pass = open(cmd->redirect_in_path, O_RDONLY);
+            if( (pass = open(cmd->redirect_in_path, O_RDONLY)) < 0 ) {
+				exit(2);
+            }
         }
         if(cmd->redirect_out_path) {
-            pfd[1] = creat(cmd->redirect_out_path, 0644);
+            if( (pfd[1] = creat(cmd->redirect_out_path, 0644)) < 0 ) {
+				exit(3);
+            }
         }
 
         if( cmd->next ) {
@@ -57,8 +42,7 @@ int execute(struct pipeline_command *cmd, int pass, bool waitflag)
         }
 
         if(execvp(cmd->command_args[0], cmd->command_args) < 0) {
-            perror("ERROR: ");
-            exit(EXIT_FAILURE);
+			exit(1);
         }
 
         close(pfd[1]);
@@ -68,10 +52,32 @@ int execute(struct pipeline_command *cmd, int pass, bool waitflag)
 
     } else {
         //parent
-      close(pfd[1]);
-      if(!waitflag) {
-	wait(0);
-      }
+        int wstatus;
+
+        close(pfd[1]);
+        if(!waitflag) {
+	        wait(&wstatus);
+            if (WIFEXITED(wstatus)) {
+                int statusCode = WEXITSTATUS(wstatus);
+                switch(statusCode)
+                {
+                case 1: 
+                    printf("ERROR: Fail to exec\n");  
+					break;
+
+                case 2: 
+                    printf("ERROR: Fail to open\n");
+					break;
+
+                case 3:
+                    printf("ERROR: Fail to create\n");
+					break;
+	
+                default: 
+                    break;
+                }
+            }
+        }
     }
 
     if(pass != STDIN_FILENO) {
