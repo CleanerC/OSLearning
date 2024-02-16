@@ -182,32 +182,21 @@ done4:
 # Print the integer average of squares of the contents of array Input1
 #
 
-
         la  $t0, Input1
         li  $t1, 0  # loop var
-        li  $t2, 4  # length of Input1
-        li  $t4, 0  # sum of lo
-        li  $t5, 0  # sum of hi
-loop4:  bge $t1, $t2, done5
-        lw  $t3, 0($t0)
-        mult $t3, $t3
-        mflo $t6
-        mfhi $t7
-        add $t4, $t4, $t6
-        add $t5, $t5, $t7
+        li  $t2, 16  # length of Input1
+loop4:  beq $t1, $t2, done5
+        
+        lb  $t3, 0($t0)
+        mul $t3, $t3, $t3
+        add $t4, $t4, $t3
 
-        addi $t0, $t0, 4
+        addi $t0, $t0, 1
         addi $t1, $t1, 1
         j   loop4
-done5:  div $t4, $t2
+done5:  
+        div $t4, $t2
         mflo $t4
-        div $t5, $t2
-        mflo $t5
-        
-        li   $v0, 1
-        move $a0, $t5
-        syscall    # print the integer    
-
         li   $v0, 1
         move $a0, $t4
         syscall    # print the integer  
