@@ -5,12 +5,14 @@ override CFLAGS := -Wall -Werror -std=gnu99 -O0 -g $(CFLAGS) -I.
 #override LDFLAGS := -fsanitize=undefined -fsanitize=leak $(LDLAGS)  
 
 # Add any additional tests here
-test_files=./test_busy_threads ./test_threads 
-all: check
+test_files= $(wildcard test_*.c)
+tests = $(addprefix ./, $(test_files:.c=))
+
+all: threads.o
 
 # You might find it useful to write test programs and get them working against the installed pthreads
 # to do so, set TSTMYPTHREADS to a value other than 1
-TSTMYPTHREADS=0
+TSTMYPTHREADS= 0
 ifeq ($(TSTMYPTHREADS),1)
   mythread=threads.o
 else
@@ -26,24 +28,19 @@ CC = gcc
 # Build the threads.o file
 threads.o: threads.c ec440threads.h
 
-# rules to build each of the tests
-test_busy_threads.o : test_busy_threads.c 
-test_busy_threads: test_busy_threads.o $(mythread)
-test_threads.o : test_threads.c
-test_threads : test_threads.o $(mythread)
-
-#test_scheduler_init: test_scheduler_init.o $(mythread)
-
 .PHONY: clean check checkprogs unit
 
-#unit: test_scheduler_init
+# tests
+$(tests) : ./test_% : test_%.c threads.o
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(mythread)
 
 # Build all of the test programs
-checkprogs: $(test_files)
+checkprogs: $(tests)
+
 
 # Run the test programs
-check: checkprogs
-	/bin/bash run_tests.sh $(test_files)
+test: checkprogs
+	/bin/bash run_tests.sh $(tests)
 
 clean:
-	rm -f *.o $(test_files) $(test_o_files)
+	rm -f *.o $(tests)

@@ -10,7 +10,7 @@ void *func(void *arg) {
     unsigned long i;
     for(i = 0; i < 2; i++) {
         printf("thread %lu: print\n", (unsigned long)pthread_self());
-        //pause();
+        pause();
         /* comment pause when compiling with pthread library linked */
     }
     return 0;

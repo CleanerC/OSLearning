@@ -24,7 +24,7 @@ struct thread_control_block {
 //current running thread
 pthread_t TID = 0;
 //universal signal handler
-struct sigaction sa = { NULL };
+struct sigaction sa = {0};
 //Table of TCB
 struct thread_control_block* TCB_table[MAX_THREADS] = { NULL };
 
@@ -92,6 +92,7 @@ void scheduler_init()
     ite.it_interval.tv_usec = QUANTUM;
     ite.it_value = ite.it_interval;
     
+
     setitimer(ITIMER_REAL, &ite, NULL);
     sa.sa_handler = &schedule;
     sa.sa_flags = SA_NODEFER;
@@ -176,4 +177,55 @@ int pthread_join(pthread_t thread, void **retval)
     }
     /* will never be reached */
     return 1;
+}
+
+
+/*******************************************************/
+/* syncronization */
+
+/* mutex */
+int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr)
+{
+    if((void*)(mutex->__align) != NULL) { free( (void*)(mutex->__align) ); }
+    mutex->__align = (long int)malloc(sizeof(Mutex_Control_Unit));
+    ((Mutex_Control_Unit*)(mutex->__align))->locked = false;
+    ((Mutex_Control_Unit*)(mutex->__align))->waitList = NULL;
+
+    return 0;
+}
+
+
+int pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+
+return 0;
+}
+
+
+int pthread_mutex_lock(pthread_mutex_t *mutex)
+{
+return 0;
+}
+
+
+int pthread_mutex_unlock(pthread_mutex_t *mutex)
+{
+return 0;
+}
+
+
+/* barrier */
+int pthread_barrier_init(pthread_barrier_t *restrict barrier, const pthread_barrierattr_t *restrict attr, unsigned count)
+{
+return 0;
+}
+
+int pthread_barrier_destroy(pthread_barrier_t *barrier)
+{
+return 0;
+}
+
+int pthread_barrier_wait(pthread_barrier_t *barrier)
+{
+return 0;
 }
