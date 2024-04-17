@@ -57,8 +57,6 @@ enum JBL
   };
 
 
-
-
 // to supress compiler error say these static functions may not be used...
 static unsigned long int _ptr_mangle(unsigned long int p);
 static unsigned long int _ptr_demangle(unsigned long int p);
@@ -184,8 +182,13 @@ int thread_join(pthread_t thread, void **retval);
 //syncronizaiton
 /* mutex */
 typedef struct {
+    pthread_t tid;
+    void* next;
+}waitList_t;
+
+typedef struct {
     bool locked;
-    pthread_t *waitList;
+    waitList_t *waitList;
 }Mutex_Control_Unit;
 
 
