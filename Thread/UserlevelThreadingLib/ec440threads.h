@@ -176,7 +176,7 @@ void scheduler_init();
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 void pthread_exit(void *value_ptr)__attribute__((noreturn));
 pthread_t pthread_self(void);
-int thread_join(pthread_t thread, void **retval);
+int pthread_join(pthread_t thread, void **retval);
 
 
 //syncronizaiton
@@ -188,8 +188,14 @@ typedef struct {
 
 typedef struct {
     bool locked;
-    waitList_t *waitList;
+    waitList_t *List_head;
+    waitList_t *List_tail;
 }Mutex_Control_Unit;
+
+typedef struct {
+    pthread_t* tids;
+    int cnt;
+}Barrier_Control_Unit;
 
 
 int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr);

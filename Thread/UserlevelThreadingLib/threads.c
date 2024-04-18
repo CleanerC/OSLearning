@@ -15,6 +15,11 @@ enum mutex_err
     MU_NOT_LOCK
 };
 
+enum barrier_err
+{
+    DIS_ON_WAIT
+};
+
 struct thread_control_block {
     //id
     pthread_t tid;
@@ -42,6 +47,7 @@ struct itimerval old_attr;
 
 void schedule(int signal)
 {
+    // printf("print\n");
     if(TCB_table[TID]->status == TS_RUNNING) {
         TCB_table[TID]->status = TS_READY;
     }
@@ -62,23 +68,20 @@ void schedule(int signal)
                 next = 0;
             }
             if(TCB_table[next] != NULL) {
-                if(TCB_table[next]->status == TS_EXITED) {
+                if( (TCB_table[next]->status == TS_EXITED) || (TCB_table[next]->status == TS_BLOCKED) ) {
                     next++;
                 }   
-                if( TCB_table[next] != NULL && TCB_table[next]->status == TS_READY) {
+                if( (TCB_table[next] != NULL) && (TCB_table[next]->status == TS_READY) ) {
                     break;
                 }
                 cnt++;
                 if(cnt == MAX_THREADS) {
                     exit(0);
                 }
-            }
-            if(TCB_table[next] == NULL) {
+            } else {
                 next++;
             }
-
         }
-
 
         TID = next;
         TCB_table[TID]->status = TS_RUNNING;
@@ -194,23 +197,28 @@ int pthread_join(pthread_t thread, void **retval)
 /*******************************************************/
 /* syncronization */
 /* helper */
-void pause()
+void Pause()
 {
     struct itimerval zero_timer = {0};
     setitimer(ITIMER_REAL, &zero_timer, &old_attr);
 }
-
-void resume()
+void Resume()
 {
     setitimer(ITIMER_REAL, &old_attr, NULL);
 }
+/* these two function just make sure some part of the function executes "atomically" */
 
 void append(Mutex_Control_Unit* MCU, pthread_t tid) {
     waitList_t *new = malloc(sizeof(waitList_t));
     new->tid = tid;
-    waitList_t* itr = MCU->waitList;
-    while(itr) { itr = (waitList_t*)itr->next; }
-    itr = new;
+    new->next = NULL;
+    if(!MCU->List_head) {
+        MCU->List_head = new;
+        MCU->List_tail = new;
+    } else {
+        MCU->List_tail->next = new;
+        MCU->List_tail = new;
+    }
 }
 
 /* mutex */
@@ -219,7 +227,8 @@ int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_
     if((void*)(mutex->__align) != NULL) { free( (void*)(mutex->__align) ); }
     mutex->__align = (long int)malloc(sizeof(Mutex_Control_Unit));
     ((Mutex_Control_Unit*)(mutex->__align))->locked = false;
-    ((Mutex_Control_Unit*)(mutex->__align))->waitList = NULL;
+    ((Mutex_Control_Unit*)(mutex->__align))->List_head = NULL;
+    ((Mutex_Control_Unit*)(mutex->__align))->List_tail = NULL;
     
     return 0;
 }
@@ -234,17 +243,16 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex)
 
 int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
+    Pause();
     Mutex_Control_Unit *MCU = (Mutex_Control_Unit*)(mutex->__align);
     if( MCU->locked ) {     //thread tries to grab a locked mutex
-        pause();
         TCB_table[TID]->status = TS_BLOCKED;
         append( MCU, TID );
-        resume();
-        return MU_ALR_LOCK;
+        Resume();
+        schedule(0);
     } else {        //thread grabing a unlocked mutex
-        pause();
         MCU->locked = true;
-        resume();
+        Resume();
     }
     
     return 0;
@@ -254,12 +262,15 @@ int pthread_mutex_lock(pthread_mutex_t *mutex)
 int pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
     Mutex_Control_Unit *MCU = (Mutex_Control_Unit*)(mutex->__align);
-    if(!MCU->locked) { return MU_NOT_LOCK; }
-    pause();
+    Pause();
     MCU->locked = false;
-    TCB_table[MCU->waitList->tid]->status = TS_READY;       //FIFO
-    MCU->waitList = waitList->next;
-    resume();
+    if(MCU->List_head) {
+        waitList_t *tofree = MCU->List_head;
+        TCB_table[tofree->tid]->status = TS_READY;       //FIFO
+        MCU->List_head = tofree->next;
+        free(tofree);
+    }
+    Resume();
     return 0;
 }
 
@@ -267,15 +278,44 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 /* barrier */
 int pthread_barrier_init(pthread_barrier_t *restrict barrier, const pthread_barrierattr_t *restrict attr, unsigned count)
 {
-return 0;
+    if((Barrier_Control_Unit*)(barrier->__align)) {
+        free(((Barrier_Control_Unit*)(barrier->__align))->tids);
+        free((void*)(barrier->__align)); 
+    }
+    barrier->__align = (long int) malloc(sizeof(Barrier_Control_Unit));
+    ((Barrier_Control_Unit*)(barrier->__align))->cnt = count;
+    ((Barrier_Control_Unit*)(barrier->__align))->tids = calloc(count, sizeof(pthread_t));
+    return 0;
 }
 
 int pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
-return 0;
+    Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
+    pthread_t* cmp_tmp = calloc(BCU->cnt, sizeof(sizeof(pthread_t)));
+    if(memcmp(BCU->tids, cmp_tmp, sizeof(BCU->cnt * sizeof(pthread_t))) != 0) {     //some_threads are still waiting
+        return DIS_ON_WAIT;
+    }
+    return 0;
 }
 
 int pthread_barrier_wait(pthread_barrier_t *barrier)
 {
-return 0;
+    Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
+    Pause();
+    for(int ii = 0; ii < BCU->cnt - 1; ii++) {          //loop 1 less time the the lenght of the array;
+        pthread_t* tid = BCU->tids + ii * sizeof(pthread_t);
+        if(*tid == 0) {         // free spot in the array
+            *tid = TID;
+            TCB_table[TID]->status = TS_BLOCKED;
+            Resume();
+            pause();        //make sure this thread deosn't get scheduled
+            return 0;       //break out of this function
+        }
+    }
+    //cnt is reached
+    for(int ii = 0; ii < BCU->cnt; ii++) {
+        TCB_table[ ((long int)(BCU->tids + ii * sizeof(pthread_t)) )]->status = TS_READY;
+    }
+    Resume();
+    return 0;
 }

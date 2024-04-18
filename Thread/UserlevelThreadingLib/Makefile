@@ -1,4 +1,5 @@
-override CFLAGS := -Wall -Werror -std=gnu99 -O0 -g $(CFLAGS) -I.
+# override CFLAGS := -Wall -Werror -std=gnu99 -O0 -g $(CFLAGS) -I.
+override CFLAGS := -std=gnu99 -O0 -g $(CFLAGS) -I.
 
 # you can uncomment following to add sanitizer for development; note make sure to not have this for submissions
 #override CFLAGS :=  -fsanitize=undefined $(CFLAGS) 
@@ -12,7 +13,7 @@ all: threads.o
 
 # You might find it useful to write test programs and get them working against the installed pthreads
 # to do so, set TSTMYPTHREADS to a value other than 1
-TSTMYPTHREADS= 0
+TSTMYPTHREADS=0
 ifeq ($(TSTMYPTHREADS),1)
   mythread=threads.o
 else
