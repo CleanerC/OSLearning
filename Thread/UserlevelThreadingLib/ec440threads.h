@@ -194,7 +194,9 @@ typedef struct {
 
 typedef struct {
     pthread_t* tids;
+    int bar;
     int cnt;
+    bool ret;
 }Barrier_Control_Unit;
 
 

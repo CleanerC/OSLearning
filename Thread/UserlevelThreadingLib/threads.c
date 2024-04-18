@@ -283,7 +283,9 @@ int pthread_barrier_init(pthread_barrier_t *restrict barrier, const pthread_barr
         free((void*)(barrier->__align)); 
     }
     barrier->__align = (long int) malloc(sizeof(Barrier_Control_Unit));
-    ((Barrier_Control_Unit*)(barrier->__align))->cnt = count;
+    ((Barrier_Control_Unit*)(barrier->__align))->cnt = 0;
+    ((Barrier_Control_Unit*)(barrier->__align))->ret = false;
+    ((Barrier_Control_Unit*)(barrier->__align))->bar = count;
     ((Barrier_Control_Unit*)(barrier->__align))->tids = calloc(count, sizeof(pthread_t));
     return 0;
 }
@@ -291,30 +293,36 @@ int pthread_barrier_init(pthread_barrier_t *restrict barrier, const pthread_barr
 int pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
     Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
-    pthread_t* cmp_tmp = calloc(BCU->cnt, sizeof(sizeof(pthread_t)));
-    if(memcmp(BCU->tids, cmp_tmp, sizeof(BCU->cnt * sizeof(pthread_t))) != 0) {     //some_threads are still waiting
-        return DIS_ON_WAIT;
-    }
+    if(BCU->cnt != 0) { return DIS_ON_WAIT; }
+    free(BCU);
     return 0;
 }
 
 int pthread_barrier_wait(pthread_barrier_t *barrier)
 {
+
     Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
     Pause();
-    for(int ii = 0; ii < BCU->cnt - 1; ii++) {          //loop 1 less time the the lenght of the array;
-        pthread_t* tid = BCU->tids + ii * sizeof(pthread_t);
-        if(*tid == 0) {         // free spot in the array
-            *tid = TID;
-            TCB_table[TID]->status = TS_BLOCKED;
-            Resume();
-            pause();        //make sure this thread deosn't get scheduled
-            return 0;       //break out of this function
-        }
+    (BCU->tids)[BCU->cnt] = TID;
+    BCU->cnt++;
+    TCB_table[TID]->status = TS_BLOCKED;
+    if (BCU->cnt < BCU->bar) {
+        Resume();
+        schedule(0);
     }
     //cnt is reached
-    for(int ii = 0; ii < BCU->cnt; ii++) {
-        TCB_table[ ((long int)(BCU->tids + ii * sizeof(pthread_t)) )]->status = TS_READY;
+    for(int ii = 0; ii < (BCU->bar); ii++) {
+        TCB_table[(BCU->tids)[ii]]->status = TS_READY;
+        (BCU->tids)[ii] = 0;
+    }
+    BCU->cnt = 0;
+    Resume();
+    schedule(0);
+    Pause();
+    if(!BCU->ret) {
+        BCU->ret = true;
+        Resume();
+        return -1;      //PTHREAD_BARRIER_SERIAL_THREAD
     }
     Resume();
     return 0;
