@@ -75,7 +75,7 @@ void schedule(int signal)
                     break;
                 }
                 cnt++;
-                if(cnt == MAX_THREADS) {
+                if(cnt ==  MAX_THREADS) {
                     exit(0);
                 }
             } else {
@@ -167,8 +167,8 @@ void pthread_exit(void *value_ptr)
     }
     TCB_table[TID]->status = TS_EXITED;
     assert(TCB_table[TID]->status == TS_EXITED);
-    pause();
-    while(1);
+    schedule(0);
+    exit(0);
 }
 
 pthread_t pthread_self(void)
@@ -303,6 +303,7 @@ int pthread_barrier_wait(pthread_barrier_t *barrier)
 
     Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
     Pause();
+    if(BCU->cnt == 0) { BCU->ret = false; }
     (BCU->tids)[BCU->cnt] = TID;
     BCU->cnt++;
     TCB_table[TID]->status = TS_BLOCKED;
@@ -311,19 +312,19 @@ int pthread_barrier_wait(pthread_barrier_t *barrier)
         schedule(0);
     }
     //cnt is reached
-    for(int ii = 0; ii < (BCU->bar); ii++) {
-        TCB_table[(BCU->tids)[ii]]->status = TS_READY;
-        (BCU->tids)[ii] = 0;
-    }
-    BCU->cnt = 0;
-    Resume();
-    schedule(0);
-    Pause();
     if(!BCU->ret) {
+        for(int ii = 0; ii < (BCU->bar); ii++) {
+            TCB_table[(BCU->tids)[ii]]->status = TS_READY;
+        }
+        free(BCU->tids);
+        BCU->tids = calloc(BCU->bar, sizeof(pthread_t));
+        BCU->cnt = 0; 
         BCU->ret = true;
         Resume();
-        return -1;      //PTHREAD_BARRIER_SERIAL_THREAD
+        schedule(0);
+        return -1;          //PTHREAD_BARRIER_SERIAL_THREAD
     }
     Resume();
+    schedule(0);
     return 0;
 }

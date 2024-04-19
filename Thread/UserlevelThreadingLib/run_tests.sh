@@ -1,5 +1,5 @@
 #!/bin/bash
-TIMEOUT_SECONDS=10
+TIMEOUT_SECONDS=5
 
 all_tests=$@
 test_count=$#

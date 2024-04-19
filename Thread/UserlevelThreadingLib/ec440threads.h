@@ -197,6 +197,7 @@ typedef struct {
     int bar;
     int cnt;
     bool ret;
+    bool inUse;
 }Barrier_Control_Unit;
 
 
