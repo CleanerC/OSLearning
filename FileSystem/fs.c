@@ -417,6 +417,11 @@ int fs_write(int fildes, void *buf, size_t nbyte){
     int fd_off_blk = fd_arr[fildes].offset / BLOCK_SIZE;
     int off_inblk = fd_arr[fildes].offset % BLOCK_SIZE;
 
+    if(fd_arr[fildes].offset%1024 == 0 && fd_arr[fildes].offset > 0) {
+        off_inblk = 0;
+        ++fd_off_blk;
+    }
+
     int inodenum = fd_arr[fildes].inode_num;
     // D_Entry* dentry = &Directory[inodenum];
     Inode* inode = &Table[inodenum];
@@ -426,6 +431,7 @@ int fs_write(int fildes, void *buf, size_t nbyte){
     //create buffer
     Second_L* second = malloc(BLOCK_SIZE);
     First_L* first = malloc(BLOCK_SIZE);
+    //need fi statements to check if those two blocks are initialized.
     if(block_read(inode->Two_offset, second) == -1) { return -1; }
     if(block_read(second->first_level_blocks[second_index], first) == -1) { return -1; }
 

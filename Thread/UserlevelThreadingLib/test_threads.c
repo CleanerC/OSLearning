@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
 
     for(i = 0; i < 3; i++) {
         printf("thread main: print\n");
+        pause();
     }
 
     pthread_exit(NULL);

@@ -17,7 +17,7 @@ enum mutex_err
 
 enum barrier_err
 {
-    DIS_ON_WAIT
+    DIS_ON_WAIT = -1
 };
 
 struct thread_control_block {
@@ -294,6 +294,7 @@ int pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
     Barrier_Control_Unit* BCU = ((Barrier_Control_Unit*)(barrier->__align));
     if(BCU->cnt != 0) { return DIS_ON_WAIT; }
+    free(BCU->tids);
     free(BCU);
     return 0;
 }
